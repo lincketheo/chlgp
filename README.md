@@ -6,23 +6,23 @@ A Changelog Parser
 
 Parses changelog into json - if no other arguments are supplied, parses the entire changelog
 ```
-$ ./chlgp get <filename> 
+$ ./chlgp get CHANGELOG_example.md 
 ```
 
 Optionally supply the number of changelog entries:
 ```
-$ ./chlgp get <filename> --head 5
+$ ./chlgp get CHANGELOG_example.md --head 5
 ```
 
-Optionally supply which of body version date. If you don't include any, it includes all:
+Optionally supply any of `body` `version` or `date`. If you don't include any, it includes all:
 ```
-$ ./chlgp get <filename> body date --head 5 
+$ ./chlgp get CHANGELOG_example.md body date --head 5 
 ```
 
 Optionally specify the output format (pst... it only supports json for now :)
 
 ```
-$ ./chlgp get <filename> body date json --head 5 
+$ ./chlgp get CHANGELOG_example.md body date json --head 5 
 ```
 
 ## Valid Changelog syntax
@@ -37,8 +37,8 @@ $ ./chlgp get <filename> body date json --head 5
 <body>
 ```
 
-Note, this is still a weak parser so there are some rules:
+This is still a pretty weak parser so there are some rules:
 1. No `[` or `]` anywhere other than the version.
-2. One space before and after the date
+2. One space before and after the date (one space total in between version and date `[version] <date> ` is valid `[version]  <date> ` is not, notice the space after date).
 
-These rules will be fixed.
+These rules will be fixed in later iterations
