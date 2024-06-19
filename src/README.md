@@ -1,2 +1,0 @@
-# chlgp
-A Changelog Parser
