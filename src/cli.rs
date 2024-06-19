@@ -1,4 +1,4 @@
-use crate::inputs::{Actions, ChangelogIncludes, Format, GetInputs};
+use crate::models::{Actions, ChangelogIncludes, Format, GetInputs};
 
 impl Actions {
     pub fn from(args: &mut Vec<String>) -> Result<Self, String> {

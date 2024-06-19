@@ -1,10 +1,10 @@
 mod cli;
 mod get;
-mod inputs;
+mod models;
 
 use cli::parse_get;
 use get::execute_get;
-use inputs::Actions;
+use models::Actions;
 
 use std::env;
 

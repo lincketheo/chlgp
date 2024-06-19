@@ -1,4 +1,4 @@
-use crate::inputs::{ChangelogIncludes, Format, GetInputs};
+use crate::models::{ChangelogIncludes, Format, GetInputs};
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Read};
 
