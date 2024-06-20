@@ -30,19 +30,6 @@ impl ChangelogIncludes {
         self.body = true;
         self.date = true;
     }
-    pub fn get_count(&self) -> usize {
-        let mut ret = 0;
-        if self.body {
-            ret += 1;
-        }
-        if self.version {
-            ret += 1;
-        }
-        if self.date {
-            ret += 1;
-        }
-        ret
-    }
 }
 
 impl fmt::Display for Actions {

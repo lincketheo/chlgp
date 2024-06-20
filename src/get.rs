@@ -10,43 +10,26 @@ pub struct ChangelogItem {
 
 impl ChangelogItem {
     fn print_json(&self, includes: &ChangelogIncludes) {
-        if includes.all_false() {
-            print!("null");
-            return;
-        }
-        if includes.get_count() > 1 {
-            print!("{{");
-        }
+        print!("{{");
         let mut needs_comma_before = false;
         if includes.body {
-            if includes.get_count() > 1 {
-                print!("\"body\":");
-            }
-            print!("\"{}\"", self.body);
+            print!("\"body\":\"{}\"", escape_special_characters(&self.body));
             needs_comma_before = true;
         }
         if includes.version {
             if needs_comma_before {
                 print!(",");
             }
-            if includes.get_count() > 1 {
-                print!("  \"version\": ");
-            }
-            print!("\"{}\"", self.version);
+            print!("\"version\":\"{}\"", escape_special_characters(&self.version));
             needs_comma_before = true;
         }
         if includes.date {
             if needs_comma_before {
                 print!(",");
             }
-            if includes.get_count() > 1 {
-                print!("  \"date\": ");
-            }
-            print!("\"{}\"", self.date);
+            print!("\"date\":\"{}\"", escape_special_characters(&self.date));
         }
-        if includes.get_count() > 1 {
-            print!("}}");
-        }
+        print!("}}");
     }
 }
 
@@ -93,13 +76,13 @@ impl<R: Read> ChangelogItemIterator<R> for BufReader<R> {
 
 fn escape_special_characters(input: &str) -> String {
     input
-        .replace("\\", "\\\\") // This must be the first replacement
+        .replace("\\", "\\\\") 
         .replace("\n", "\\n")
         .replace("\r", "\\r")
         .replace("\t", "\\t")
-        .replace("\x08", "\\b") // Backspace
-        .replace("\x0c", "\\f") // Form feed
-        .replace("\"", "\\\"") // Double quote
+        .replace("\x08", "\\b") 
+        .replace("\x0c", "\\f")
+        .replace("\"", "\\\"")
 }
 
 impl<R: Read> Iterator for ChangelogItems<R> {
@@ -129,10 +112,6 @@ impl<R: Read> Iterator for ChangelogItems<R> {
         let date = String::from_utf8_lossy(&date).trim().to_string();
         let body = String::from_utf8_lossy(&body).trim().to_string();
 
-        let version = escape_special_characters(&version);
-        let date = escape_special_characters(&date);
-        let body = escape_special_characters(&body);
-
         Some(ChangelogItem {
             version,
             date,
@@ -142,11 +121,7 @@ impl<R: Read> Iterator for ChangelogItems<R> {
 }
 
 pub fn execute_get(args: GetInputs) -> Result<(), String> {
-    let n = if args.n == 0 {
-        usize::MAX
-    } else {
-        args.n
-    };
+    let n = if args.n == 0 { usize::MAX } else { args.n };
 
     let file = match File::open(args.filename) {
         Ok(file) => file,
@@ -170,6 +145,7 @@ pub fn execute_get(args: GetInputs) -> Result<(), String> {
             }
         }
     }
+
     for item in iter.take(n - 1) {
         print!(",");
         match args.format {
@@ -185,3 +161,4 @@ pub fn execute_get(args: GetInputs) -> Result<(), String> {
 
     Ok(())
 }
+
