@@ -9,20 +9,15 @@ Parses changelog into json - if no other arguments are supplied, parses the enti
 $ ./chlgp get CHANGELOG_example.md 
 ```
 
-Optionally supply the number of changelog entries:
-```
-$ ./chlgp get CHANGELOG_example.md --head 5
-```
-
 Optionally supply any of `body` `version` or `date`. If you don't include any, it includes all:
 ```
-$ ./chlgp get CHANGELOG_example.md body date --head 5 
+$ ./chlgp get CHANGELOG_example.md body date
 ```
 
 Optionally specify the output format (pst... it only supports json for now :)
 
 ```
-$ ./chlgp get CHANGELOG_example.md body date json --head 5 
+$ ./chlgp get CHANGELOG_example.md body date json
 ```
 
 ## Valid Changelog syntax
