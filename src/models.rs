@@ -10,13 +10,14 @@ pub struct ChangelogIncludes {
     pub date: bool
 }
 
+#[derive(Debug)]
+#[derive(PartialEq)]
 pub enum Format {
     JSON,
 }
 
 pub struct GetInputs {
     pub filename: String,
-    pub n: usize,
     pub includes: ChangelogIncludes,
     pub format: Format
 }
@@ -54,7 +55,6 @@ impl fmt::Debug for GetInputs {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("GetInputs")
             .field("filename", &self.filename)
-            .field("n", &self.n)
             .field("includes", &self.includes)
             .finish()
     }

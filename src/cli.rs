@@ -36,7 +36,6 @@ pub fn parse_get(args: &mut Vec<String>) -> Result<GetInputs, String> {
             .next()
             .expect("Something went wrong") // Already verified has >= 1
             .clone(),
-        n: 0,
         includes: ChangelogIncludes {
             body: false,
             date: false,
@@ -47,17 +46,6 @@ pub fn parse_get(args: &mut Vec<String>) -> Result<GetInputs, String> {
 
     while let Some(arg) = args.next() {
         match arg.as_str() {
-            "--head" => match args.next().map(|res| res.parse::<usize>()) {
-                Some(Ok(n)) => {
-                    ret.n = n;
-                }
-                Some(Err(msg)) => {
-                    return Err(format!("Invalid parameter for --head. Error: {}", msg));
-                }
-                None => {
-                    return Err(format!("Expecting parameter for --head."));
-                }
-            },
             "body" => ret.includes.body = true,
             "version" => ret.includes.version = true,
             "date" => ret.includes.date = true,
@@ -72,4 +60,92 @@ pub fn parse_get(args: &mut Vec<String>) -> Result<GetInputs, String> {
         ret.includes.make_all_true()
     }
     Ok(ret)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_get_just_filename() {
+        let mut tc = Vec::new();
+        tc.push("filename".to_string());
+        let result = parse_get(&mut tc);
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!(result.filename, "filename".to_string());
+        assert_eq!(result.format, Format::JSON);
+        assert!(result.includes.body);
+        assert!(result.includes.date);
+        assert!(result.includes.version);
+    }
+
+    #[test]
+    fn parse_get_include_1() {
+        let mut tc = Vec::new();
+        tc.push("filename".to_string());
+        tc.push("body".to_string());
+        let result = parse_get(&mut tc);
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!(result.filename, "filename".to_string());
+        assert_eq!(result.format, Format::JSON);
+        assert!(result.includes.body);
+        assert!(!result.includes.date);
+        assert!(!result.includes.version);
+    }
+
+    #[test]
+    fn parse_get_include_2() {
+        let mut tc = Vec::new();
+        tc.push("filename".to_string());
+        tc.push("body".to_string());
+        tc.push("date".to_string());
+        let result = parse_get(&mut tc);
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!(result.filename, "filename".to_string());
+        assert_eq!(result.format, Format::JSON);
+        assert!(result.includes.body);
+        assert!(result.includes.date);
+        assert!(!result.includes.version);
+    }
+
+    #[test]
+    fn parse_get_all_args() {
+        let mut tc = Vec::new();
+        tc.push("filename".to_string());
+        tc.push("body".to_string());
+        tc.push("date".to_string());
+        tc.push("json".to_string());
+        let result = parse_get(&mut tc);
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!(result.filename, "filename".to_string());
+        assert_eq!(result.format, Format::JSON);
+        assert!(result.includes.body);
+        assert!(result.includes.date);
+        assert!(!result.includes.version);
+    }
+
+    #[test]
+    fn parse_get_unrecognized_arg_1() {
+        let mut tc = Vec::new();
+        tc.push("filename".to_string());
+        tc.push("foo".to_string());
+        let result = parse_get(&mut tc);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_get_unrecognized_arg_2() {
+        let mut tc = Vec::new();
+        tc.push("filename".to_string());
+        tc.push("body".to_string());
+        tc.push("date".to_string());
+        tc.push("biz".to_string());
+        tc.push("json".to_string());
+        let result = parse_get(&mut tc);
+        assert!(result.is_err());
+    }
 }

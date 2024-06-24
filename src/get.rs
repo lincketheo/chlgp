@@ -1,6 +1,6 @@
-use crate::models::{ChangelogIncludes, Format, GetInputs};
+use crate::models::{ChangelogIncludes, GetInputs};
 use std::fs::File;
-use std::io::{self, BufRead, BufReader, Read};
+use std::io::{self, BufRead, BufReader, BufWriter, Read, Write};
 
 pub struct ChangelogItem {
     body: String,
@@ -9,120 +9,130 @@ pub struct ChangelogItem {
 }
 
 impl ChangelogItem {
-    fn print_json(&self, includes: &ChangelogIncludes) {
-        print!("{{");
-        let mut needs_comma_before = false;
+    fn write_json<W: Write>(
+        &self,
+        includes: &ChangelogIncludes,
+        writer: &mut BufWriter<W>,
+    ) -> Result<(), std::io::Error> {
+        writer.write_all(b"{")?;
+
+        let mut writes: Vec<(String, String)> = Vec::new();
+
         if includes.body {
-            print!("\"body\":\"{}\"", escape_special_characters(&self.body));
-            needs_comma_before = true;
+            writes.push(("body".to_string(), escape_special_characters(&self.body)));
         }
         if includes.version {
-            if needs_comma_before {
-                print!(",");
-            }
-            print!("\"version\":\"{}\"", escape_special_characters(&self.version));
-            needs_comma_before = true;
+            writes.push(("version".to_string(), escape_special_characters(&self.version)));
         }
         if includes.date {
-            if needs_comma_before {
-                print!(",");
+            writes.push(("date".to_string(), escape_special_characters(&self.date)));
+        }
+
+        let mut writes = writes.iter().peekable();
+
+        while let Some((key, value)) = writes.next() {
+            writer.write_all(format!("\"{}\":\"{}\"", key, value).as_bytes())?;
+            if writes.peek().is_some() {
+                writer.write_all(b",")?;
             }
-            print!("\"date\":\"{}\"", escape_special_characters(&self.date));
         }
-        print!("}}");
-    }
-}
 
-pub trait ChangelogItemIterator<R: Read> {
-    fn changelog_elems(self) -> ChangelogItems<R>;
-}
+        writer.write_all(b"}")?;
 
-pub struct ChangelogItems<R: Read> {
-    reader: BufReader<R>,
-    first: bool,
-}
-
-impl<R: Read> ChangelogItems<R> {
-    fn set_position_to_first_version(&mut self) -> io::Result<usize> {
-        let mut buffer = Vec::new();
-        self.reader.read_until(b'[', &mut buffer)
-    }
-    fn read_version(&mut self, buffer: &mut Vec<u8>) -> io::Result<usize> {
-        let ret = self.reader.read_until(b']', buffer);
-        buffer.pop();
-        ret
-    }
-    fn read_date(&mut self, buffer: &mut Vec<u8>) -> io::Result<usize> {
-        let _ = self.reader.read_until(b' ', buffer);
-        let ret = self.reader.read_until(b' ', buffer);
-        buffer.pop();
-        ret
-    }
-    fn read_body(&mut self, buffer: &mut Vec<u8>) -> io::Result<usize> {
-        let ret = self.reader.read_until(b'[', buffer);
-        buffer.pop();
-        ret
-    }
-}
-
-impl<R: Read> ChangelogItemIterator<R> for BufReader<R> {
-    fn changelog_elems(self) -> ChangelogItems<R> {
-        ChangelogItems {
-            reader: self,
-            first: true,
-        }
+        Ok(())
     }
 }
 
 fn escape_special_characters(input: &str) -> String {
     input
-        .replace("\\", "\\\\") 
+        .replace("\\", "\\\\")
         .replace("\n", "\\n")
         .replace("\r", "\\r")
         .replace("\t", "\\t")
-        .replace("\x08", "\\b") 
+        .replace("\x08", "\\b")
         .replace("\x0c", "\\f")
         .replace("\"", "\\\"")
 }
 
-impl<R: Read> Iterator for ChangelogItems<R> {
-    type Item = ChangelogItem;
+fn set_position_to_first_version<R: Read>(reader: &mut BufReader<R>) -> io::Result<usize> {
+    let mut buffer = Vec::new();
+    reader.read_until(b'[', &mut buffer)
+}
+fn read_version<R: Read>(reader: &mut BufReader<R>, buffer: &mut Vec<u8>) -> io::Result<usize> {
+    let ret = reader.read_until(b']', buffer);
+    buffer.pop();
+    ret
+}
+fn read_date<R: Read>(reader: &mut BufReader<R>, buffer: &mut Vec<u8>) -> io::Result<usize> {
+    let _ = reader.read_until(b' ', buffer);
+    let ret = reader.read_until(b' ', buffer);
+    buffer.pop();
+    ret
+}
+fn read_body<R: Read>(reader: &mut BufReader<R>, buffer: &mut Vec<u8>) -> io::Result<usize> {
+    let ret = reader.read_until(b'[', buffer);
+    buffer.pop();
+    ret
+}
 
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.first {
-            if let Ok(0) = self.set_position_to_first_version() {
-                return None;
-            }
-            self.first = false;
-        }
+fn parse_changelog_get<R: Read>(
+    changelog: &mut BufReader<R>,
+) -> Result<Vec<ChangelogItem>, std::io::Error> {
+    let mut ret = Vec::new();
+
+    // Go to the start of the actual content (skips all the header information)
+    let _ = set_position_to_first_version(changelog);
+
+    loop {
         let mut version: Vec<u8> = Vec::new();
         let mut date: Vec<u8> = Vec::new();
         let mut body: Vec<u8> = Vec::new();
-        if let Ok(0) = self.read_version(&mut version) {
-            return None;
+
+        // fail fast when we can't read anymore
+        // TODO - think of a better way of doing this
+        if read_version(changelog, &mut version)? == 0 {
+            break;
         }
-        if let Ok(0) = self.read_date(&mut date) {
-            return None;
+        if read_date(changelog, &mut date)? == 0 {
+            break;
         }
-        if let Ok(0) = self.read_body(&mut body) {
-            return None;
+        if read_body(changelog, &mut body)? == 0 {
+            break;
         }
 
         let version = String::from_utf8_lossy(&version).trim().to_string();
         let date = String::from_utf8_lossy(&date).trim().to_string();
         let body = String::from_utf8_lossy(&body).trim().to_string();
 
-        Some(ChangelogItem {
+        let item = ChangelogItem {
             version,
             date,
             body,
-        })
+        };
+        ret.push(item);
     }
+
+    Ok(ret)
+}
+
+fn write_list_of_changelog_items_json<W: Write>(
+    items: Vec<ChangelogItem>,
+    includes: ChangelogIncludes,
+    writer: &mut BufWriter<W>,
+) -> Result<(), std::io::Error> {
+    writer.write_all(b"[")?;
+    let mut items = items.iter().peekable();
+    while let Some(item) = items.next() {
+        item.write_json(&includes, writer)?;
+        if items.peek().is_some() {
+            writer.write_all(b",")?;
+        }
+    }
+    writer.write_all(b"]")?;
+    Ok(())
 }
 
 pub fn execute_get(args: GetInputs) -> Result<(), String> {
-    let n = if args.n == 0 { usize::MAX } else { args.n };
-
     let file = match File::open(args.filename) {
         Ok(file) => file,
         Err(msg) => {
@@ -130,35 +140,26 @@ pub fn execute_get(args: GetInputs) -> Result<(), String> {
         }
     };
 
-    let reader = BufReader::new(file);
+    let mut reader = BufReader::new(file);
+    let items = parse_changelog_get(&mut reader).map_err(|it| it.to_string())?;
+    
+    let stdout = io::stdout();
+    let handle = stdout.lock();
+    let mut writer = BufWriter::new(handle);
 
-    if n > 1 {
-        print!("[")
-    }
-
-    let mut iter = reader.changelog_elems();
-
-    if let Some(item) = iter.next() {
-        match args.format {
-            Format::JSON => {
-                item.print_json(&args.includes);
-            }
-        }
-    }
-
-    for item in iter.take(n - 1) {
-        print!(",");
-        match args.format {
-            Format::JSON => {
-                item.print_json(&args.includes);
-            }
-        }
-    }
-
-    if n > 1 {
-        print!("]")
-    }
+    write_list_of_changelog_items_json(items, args.includes, &mut writer).map_err(|it| it.to_string())?;
+    writer.flush().map_err(|it| it.to_string())?;
 
     Ok(())
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_escape_special_characters() {
+        let tc = "foo\\bar\nbiz\rbuz\tbaz\x08fizz\x0cfazz\"".to_string();
+        let exp = "foo\\\\bar\\nbiz\\rbuz\\tbaz\\bfizz\\ffazz\\\"".to_string();
+        assert_eq!(escape_special_characters(&tc), exp);
+    }
+}

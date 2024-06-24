@@ -10,9 +10,13 @@ use std::env;
 
 fn main() {
     let mut args: Vec<String> = env::args().collect();
+    handle_arguments(&mut args)
+}
+
+fn handle_arguments(args: &mut Vec<String>) {
     args.remove(0); // Remove executable name
 
-    match Actions::from(&mut args).and_then(|action| handle_action(&action, &mut args)) {
+    match Actions::from(args).and_then(|action| handle_action(&action, args)) {
         Ok(_) => {
 
         }
