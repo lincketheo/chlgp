@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.0] 2024-06-16 <lincketheo@gmail.com>
+## [1.0.0] 2024-06-16 <lincketheo@gmail.com>
 
 ### Added
 
